@@ -1,0 +1,219 @@
+---
+title: "Class10 Halloween Mini-Project"
+author: "Cuiling He"
+format: pdf
+editor: visual
+---
+
+Here we take 538's candy dataset and explore it with methods we have been learning in class (Hint, hint, PCA)
+
+Import data
+
+```{r}
+candy <- read.csv("candy-data.csv", row.names =1)
+```
+
+\< Q1  How many different candy types are in this dataset?
+
+```{r}
+nrow(candy)
+```
+
+> Q2 How many fruity candy types are in the dataset?
+
+```{r}
+sum(candy$fruity)
+```
+
+Look up how my candy is doing
+
+```{r}
+candy["Fruit Chews", ]$winpercent
+```
+
+An overview of the dataset
+
+```{r}
+install.packages("skimr")
+library(skimr)
+
+```
+
+```{r}
+skim(candy)
+```
+
+> Q8 Plot a histogram of `winpercent` value?
+
+```{r}
+hist(candy$winpercent, breaks = 9)
+```
+
+Q11 On average is chocolate candy higher or lower ranked than fruit candy?
+
+```{r}
+mean(candy$winpercent)
+```
+
+```{r}
+win.choc <- candy[as.logical(candy$chocolate), "winpercent" ]
+win.fruit <- candy[as.logical(candy$fruity), "winpercent" ]
+mean(win.choc)
+mean(win.fruit)
+```
+
+```{r}
+t.test(win.choc, win.fruit)
+```
+
+Q 13 What are the five least liked candy types in this set?
+
+```{r}
+sort(c(5,4,1,2))
+```
+
+```{r}
+order(c(5,4,1,2))
+```
+
+```{r}
+ord.ind <- order(candy$winpercent)
+head(candy[ord.ind, ])
+```
+
+Q14 What are the top 5 all time favorite candy types out of this set?
+
+```{r}
+ord.ind <- order(candy$winpercent, decreasing = TRUE)
+head(candy[ord.ind, 5])
+
+```
+
+Q15 Make a first barplot of candy ranking based on `winpercent` values.
+
+```{r}
+#("ggplot2")
+library(ggplot2)
+
+ggplot(candy) + 
+  aes(winpercent, rownames(candy)) +
+  geom_col() 
+  
+```
+
+Q 16 This is quite ugly, use the `reorder()` function to get the bars sorted by `winpercent`?
+
+```{r}
+
+ggplot(candy) + 
+  aes(winpercent, reorder(rownames(candy),winpercent)) +
+  geom_col() 
+
+```
+
+Now let\'s try our barplot with these colors. Note that we use `fill=my_cols` for `geom_col()`. Experement to see what happens if you use `col=mycols`.
+
+```{r}
+my_cols=rep("black", nrow(candy))
+my_cols[as.logical(candy$chocolate)] = "chocolate"
+my_cols[as.logical(candy$bar)] = "brown"
+my_cols[as.logical(candy$fruity)] = "pink"
+ggplot(candy) + 
+  aes(winpercent, reorder(rownames(candy),winpercent)) +
+  geom_col(fill=my_cols) +
+  theme_classic()
+
+```
+
+What about value for money? What is the the best candy for the least money? One way to get at this would be to make a plot of `winpercent` vs the `pricepercent` variable.
+
+```{r}
+install.packages("ggrepel")
+library(ggrepel)
+
+# How about a plot of price vs win
+ggplot(candy) +
+  aes(winpercent, pricepercent, label=rownames(candy)) +
+  geom_point(col=my_cols) + 
+  geom_text_repel(col=my_cols, size=3.3, max.overlaps = 5)
+```
+
+```{r}
+my_cols[as.logical(candy$fruity)] = "red"
+ggplot(candy) +
+  aes(winpercent, pricepercent, label=rownames(candy)) +
+  geom_point(col=my_cols) + 
+  geom_text_repel(col=my_cols, size=3.3, max.overlaps = 5)
+```
+
+```{r}
+ord <- order(candy$pricepercent, decreasing = TRUE)
+head(candy[ord,c(11,12)], n=5 )
+```
+
+```{r}
+ord <- order(candy$winpercent, decreasing = TRUE)
+head(candy[ord,c(11,12)], n=5 )
+```
+
+```{r}
+install.packages("corrplot")
+```
+
+# Exploring the correlation structure
+
+```{r}
+library(corrplot)
+cij <- cor(candy)
+corrplot(cij)
+
+```
+
+# Principal Component Analysis
+
+Let\'s apply PCA using the `prcom()` function to our candy dataset remembering to set the `scale=TRUE` argument.
+
+```{r}
+pca <- prcomp(candy, scale = TRUE)
+summary(pca)
+```
+
+Now we can plot our main pca score plot of pc1 vs pc2
+
+```{r}
+plot(pca$x[,1], pca$x[,2], col=my_cols, pch=16)
+```
+
+```{r}
+my_data <- cbind(candy, pca$x[,1:3])
+p <- ggplot(my_data) + 
+        aes(x=PC1, y=PC2, 
+            size=winpercent/100,  
+            text=rownames(my_data),
+            label=rownames(my_data)) +
+        geom_point(col=my_cols)
+p
+```
+
+```{r}
+p + geom_text_repel(size=3.3, col=my_cols, max.overlaps = 7)  + 
+  theme(legend.position = "none") +
+  labs(title="Halloween Candy PCA Space",
+       subtitle="Colored by type: chocolate bar (dark brown), chocolate other (light brown), fruity (red), other (black)",
+       caption="Data from 538")
+```
+
+```{r}
+# install.packages("plotly")
+library(plotly)
+```
+
+```{r}
+#| eval: false
+ggplotly(p)
+```
+
+```{r}
+par(mar=c(8,4,2,2))
+barplot(pca$rotation[,1], las=2, ylab="PC1 Contribution")
+```
